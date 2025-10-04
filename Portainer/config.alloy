@@ -1,0 +1,41 @@
+#nvim /etc/alloy/config.alloy
+loki.write "default" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}
+
+loki.source.file "containers" {
+  targets = [{
+    __path__ = "/var/lib/docker/containers/*/*-json.log",
+    job      = "containers",
+  }]
+  forward_to = [loki.process.docker_json.receiver]
+}
+
+loki.process "docker_json" {
+  stage.json {
+    expressions = {
+      log    = "log",
+      stream = "stream",
+      time   = "time",
+    }
+  }
+
+  stage.timestamp {
+    source = "time"
+    format = "RFC3339Nano"
+  }
+
+  stage.output {
+    source = "log"
+  }
+
+  stage.labels {
+    values = {
+      stream = "",
+    }
+  }
+
+  forward_to = [loki.write.default.receiver]
+}
